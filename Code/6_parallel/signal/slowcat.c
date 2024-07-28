@@ -24,7 +24,7 @@ int main (int argc, char **argv) {
 
 	if (argc < 2) {
 		
-		printf("Usage: ./mycp_1 srcfile desfile");
+		printf("Usage: ./slowcat desfile");
 		exit(1);
 	}
 
@@ -57,8 +57,6 @@ int main (int argc, char **argv) {
 			}
 		}
 	} while(src_fd < 0);
-
-	
 
 	while (1) {
 		// 使程序阻塞，不让它执行那么快，一秒后自然会改变 loop 跳出
