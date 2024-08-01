@@ -4,14 +4,11 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-
-static void act_handler(int s, siginfo_t *infop, void *p)
-{
+static void act_handler(int s, siginfo_t *infop, void *p) {
 	write(1, "!", 1);
 }
 
-static void sig_handler(int s)
-{
+static void sig_handler(int s) {
 	write(1, "!", 1);
 }
 
@@ -29,7 +26,6 @@ int main()
 	act.sa_flags = SA_SIGINFO; // 表示是三参的处理函数
 	sigaction(SIGINT, &act, &oact);
 
-
 	// signal(SIGINT, sig_handler);
 
 	// // 发出信号
@@ -43,22 +39,18 @@ int main()
 
 	sigemptyset(&set);
 	sigaddset(&set, SIGINT);
-
 	
 	sigprocmask(SIG_UNBLOCK, &set, &saveset);
 	sigprocmask(SIG_BLOCK, &set, &oset);
-	for(i = 0; i < 1000; i++)
-	{	
+	for(i = 0; i < 1000; i++) {	
 		
-		for(j = 0; j < 5; j++)
-		{
+		for(j = 0; j < 5; j++) {
 			write(1, "*", 1);
 			usleep(1000000);
 		}
 		write(1, "\n", 1);
 
 		sigsuspend(&oset);
-
 
 		// sigprocmask(SIG_UNBLOCK, &set, NULL);  // unblock后还没走到pause，就触发了响应了函数，
 		// pause();

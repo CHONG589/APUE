@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "anytimer.h"
 
@@ -16,10 +17,12 @@ typedef struct anytimer_st {
 static anytimer *job[JOB_MAX];
 static int inited = 0;
 static __sighandler_t alrm_handler_save;
+static struct itimerval itv_old;
+static struct itimerval itv;
 
 static void alrm_handler(int s) {
     int i;
-    alarm(1);
+    //alarm(1);
     for (i = 0; i < JOB_MAX; i++) {
         if (job[i] != NULL) {
             if ((job[i]->sec != 0) && (job[i]->flag == 1)) {
@@ -36,7 +39,8 @@ static void alrm_handler(int s) {
 static void module_unload(void) {
     int i;
     signal(SIGALRM, alrm_handler_save);
-    alarm(0);
+    //alarm(0);
+    setitimer(ITIMER_REAL, &itv_old, NULL);
 
     for (i = 0; i < JOB_MAX; i++) {
         free(job[i]);
@@ -44,8 +48,19 @@ static void module_unload(void) {
 }
 
 static void module_load(void) {
+
     alrm_handler_save = signal(SIGALRM, alrm_handler);
-    alarm(1);
+    //alarm(1);
+
+    itv.it_interval.tv_sec = 1;
+    itv.it_interval.tv_usec = 0;
+    itv.it_value.tv_sec = 1;
+    itv.it_value.tv_usec = 0;
+    if (setitimer(ITIMER_REAL, &itv, &itv_old) < 0) {
+        perror("setitimer()");
+        exit(1);
+    }
+
     atexit(module_unload);
 }
 

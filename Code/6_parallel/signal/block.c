@@ -2,13 +2,11 @@
 #include <stdlib.h>
 #include <signal.h>
 
-static void sig_handler(int s)
-{
+static void sig_handler(int s) {
 	write(1, "!", 1);
 }
 
-int main()
-{
+int main() {
 	int i,j;
 	sigset_t set, oset, saveset;
 
@@ -20,8 +18,7 @@ int main()
 
 	// 保存初始状态
 	sigprocmask(SIG_UNBLOCK, &set, &saveset);
-	for(j = 0; j < 1000; j++)
-	{
+	for(j = 0; j < 1000; j++) {
 		// 将set中信号增加到block集
 		sigprocmask(SIG_BLOCK, &set, NULL); // 该信号的maks位置为0
 
@@ -31,8 +28,7 @@ int main()
 		sigprocmask(SIG_SETMASK, &oset, NULL);
 
 		*/
-		for(i=0; i<5; i++)
-		{
+		for(i=0; i<5; i++) {
 			write(1, "*", 1);
 			sleep(1);
 		}
