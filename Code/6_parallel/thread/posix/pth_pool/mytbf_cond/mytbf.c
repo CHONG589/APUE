@@ -14,11 +14,11 @@ typedef struct mytbf_st {
     int token;
     int pos;
     pthread_mutex_t mut;
+    pthread_cond_t cond;
 } mytbf;
 
 static mytbf *job[MYTBF_MAX];
 static pthread_mutex_t mut_job = PTHREAD_MUTEX_INITIALIZER;
-static int inited = 0;
 static pthread_t tid_alrm;
 static pthread_once_t init_once = PTHREAD_ONCE_INIT;
 
@@ -33,6 +33,7 @@ static void *thr_alrm(void *p) {
                 job[i]->token += job[i]->cps;
                 if (job[i]->token > job[i]->burst)
                     job[i]->token = job[i]->burst;
+                pthread_cond_broadcast(&job[i]->cond);
                 pthread_mutex_unlock(&job[i]->mut);
             }
         }
@@ -92,6 +93,7 @@ mytbf_t *mytbf_init(int cps, int burst) {
     me->cps = cps;
     me->burst = burst;
     pthread_mutex_init(&me->mut, NULL);
+    pthread_cond_init(&me->cond, NULL);
 
     // 找空位，临界区
     pthread_mutex_lock(&mut_job);
@@ -125,9 +127,14 @@ int mytbf_fetchtoken(mytbf_t *ptr, int size) {
     // 没有时要等待。
     pthread_mutex_lock(&me->mut);
     while(me->token <= 0) {
-        pthread_mutex_unlock(&me->mut);
-        sched_yield();
-        pthread_mutex_lock(&me->mut);
+        //当 token <= 0 时，me->mut 解锁，让其它线程能进去改变
+        //token 值，然后这里等待信号（条件变量）通知（阻塞在条件
+        //变量上），等到一个通知后，先抢锁，然后判断 token 是否成立
+        pthread_cond_wait(&me->cond, &me->mut);
+
+        // pthread_mutex_unlock(&me->mut);
+        // sched_yield();
+        // pthread_mutex_lock(&me->mut);
     }
     n = min(me->token, size);
     me->token -= n;
@@ -146,6 +153,7 @@ int mytbf_returntoken(mytbf_t *ptr, int size) {
     me->token += size;
     if (me->token > me->burst)
         me->token = me->burst;
+    pthread_cond_broadcast(&me->cond);
     pthread_mutex_unlock(&me->mut);
     
     return size;
@@ -160,11 +168,15 @@ int mytbf_destroy(mytbf_t *ptr) {
     // 类型转换
     mytbf *me = ptr;
 
+    // 锁 job 是因为防止其它进程刚好判断出 ptr 不为空，想要
+    // 操作它，然后还没操作就跳到这里然后把它给赋值 NULL，然后
+    // 这样就变成操作空指针。
     pthread_mutex_lock(&mut_job);
     job[me->pos] = NULL;
     pthread_mutex_unlock(&mut_job);
 
     pthread_mutex_destroy(&me->mut);
+    pthread_cond_destroy(&me->cond);
     free(ptr);
     return 0;
 }

@@ -11,8 +11,6 @@ static void cleanup_func(void *p) {
 static void *func(void *p) {
     puts("Thread is working!");
 
-    // 这样写会出错，因为这个函数是宏，查看它是不是宏可以查看预处理后的代码。
-    // gcc cleanup.c -E
     pthread_cleanup_push(cleanup_func, "cleanup:1");
     pthread_cleanup_push(cleanup_func, "cleanup:2");
     pthread_cleanup_push(cleanup_func, "cleanup:3");
@@ -20,6 +18,8 @@ static void *func(void *p) {
     pthread_cleanup_pop(1);
     pthread_cleanup_pop(1);
     pthread_cleanup_pop(1);
+
+    puts("Thread is End!");
 
     pthread_exit(NULL);
 }
