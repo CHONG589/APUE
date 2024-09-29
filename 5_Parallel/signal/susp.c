@@ -5,16 +5,17 @@
 #include <unistd.h>
 
 static void act_handler(int s, siginfo_t *infop, void *p) {
+
 	write(1, "!", 1);
 }
 
 static void sig_handler(int s) {
+
 	write(1, "!", 1);
 }
 
+int main() {
 
-int main()
-{
 	struct sigaction act, oact;
 	struct itimerval itv, oitv;
 	int i,j;
@@ -39,11 +40,10 @@ int main()
 
 	sigemptyset(&set);
 	sigaddset(&set, SIGINT);
-	
 	sigprocmask(SIG_UNBLOCK, &set, &saveset);
 	sigprocmask(SIG_BLOCK, &set, &oset);
 	for(i = 0; i < 1000; i++) {	
-		
+		// sigprocmask(SIG_BLOCK, &set, &oset);	
 		for(j = 0; j < 5; j++) {
 			write(1, "*", 1);
 			usleep(1000000);

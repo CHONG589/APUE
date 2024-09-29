@@ -56,7 +56,7 @@ int main()
 			usleep(1000000);
 		}
 		write(1, "\n", 1);
-		// pause();
+		pause();
 
 		// 恢复信号集中的信号
 		sigprocmask(SIG_UNBLOCK, &set, NULL);

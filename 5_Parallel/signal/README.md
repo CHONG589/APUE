@@ -1,3 +1,8 @@
+---
+created: 2024-07-18 22 : 45 周四
+modified: 2024-09-29 23 : 34 周日
+---
+
 异步事件的处理： 查询法（发生频率高）、通知法（发生频率低）
 
 ### 一、 信号
@@ -56,6 +61,8 @@ do {
 是指信号的 **行为** 不可靠，第一个信号调用还未结束，第二个信号又到达，两个连续的信号到达，后一个可能会把前一个覆盖掉，这是当两个信号相同时的情况。
 
 #### 4. 可重入函数（解决信号不可靠）
+
+[重入与不可重入函数](https://www.51cto.com/article/627877.html)
 
 **该函数在执行过程中，再次调用该函数不会有影响，如一个进程中只能有一个 alarm() 函数。** 所有的系统调用都是可重入的，一部分库函数也是可重入的（如 memcpy ），不可重入的库函数如 localtime 等。
 
@@ -208,7 +215,7 @@ int main() {
 
 可以使得进程暂停运行、进入休眠状态，直到进程捕获一个信号为止，只有执行了信号处理函数并返回，pause 才会返回 -1，且 errno 置 EINTR 。
 
-**注意：** 只有当一个信号递达且处理方式被捕获时， pause 函数引起的挂起操作才会被唤醒，然后继续执行后面的程序。如果信号的处理方式为默认处理方式或者忽略，那么 pause 函数不会唤醒，而是一直挂起。
+**注意：** **只有当一个信号递达且处理方式被捕获时， pause 函数引起的挂起操作才会被唤醒**，然后继续执行后面的程序。如果信号的处理方式为默认处理方式或者忽略，那么 pause 函数不会唤醒，而是一直挂起。
 
 功能是等待一个信号来打断它。它不是忙等的，如下例子解释：
 
@@ -241,7 +248,7 @@ int main() {
 
 ###### 例子： signal() 、 pause() 和 alarm 实现定时的程序
 
-**漏桶的实现：** 即在自己实现的 mycat 程序的基础上，然它不要一次性全部显示，如让它一秒显示 10 个字符，类似这种机制常用于播放器等中。程序见 slowcat.c 。
+**漏桶的实现：** 即在自己实现的 mycat 程序的基础上，让它不要一次性全部显示，如让它一秒显示 10 个字符，类似这种机制常用于播放器等中。程序见 slowcat.c 。
 
 **令牌桶的实现：** 上面的漏桶中，如果此时没有数据，但是有定时在那里，一秒就会发送一个信号，然后使 pause 返回 -1，然后将 errno 置为 EINTR，读数据失败（没有数据可读），这样就一直 continue ，所以闲的时候一直在那空等，我们希望在闲的时候可以实现权限的积攒，如中间有三秒的时候没有数据，即空等了三秒，那么第四秒有数据的时候可以一次传输 30 个字符，这就是权限的积攒，更加灵活。程序见 slowcat2.c 。
 
@@ -359,6 +366,7 @@ struct timeval {
 信号集类型： sigset_t
 
 ```C
+// 清空信号集
 int sigemptyset(sigset_t *set);
 
 int sigfillset(sigset_t *set);
@@ -370,70 +378,132 @@ int sigdelset(sigset_t *set, int signum);
 int sigismember(const sigset_t *set, int signum);
 ```
 
-#### 8. 信号屏蔽字 / pending 集的处理
+#### 8. 信号屏蔽字的处理
 
 ```C
 // examine and change blocked signals 对某个信号集的信号做操作
-sigprocmask(); 
+
+int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+
+how：表示操作类型，有三种：
+	- SIG_BLOCK：将 set 集合中信号阻塞，总的阻塞信号集将是 set 参数和当前环
+		境的组合（可以理解为将 set 加入当前环境的 block 集）
+
+	- SIG_UNBLOCK：将 set 中的信号从当前 block 集中删除。
+
+	- SIG_SETMASK：设置 mask 位图为 set 的状态，set 可能是你之前保存的状态
+		执行完你的程序出来后，现在要还原之前即 set 的状态。
+
+这个函数就是系统给你的一种方式去控制上面讲到的信号响应过程中的 mask 位图。
+我们不能决定信号什么时候来，但信号什么时候处理，我们是可以通过这个函数来
+设置 mask 来达到目的。
+信号虽然在代码段到达，但不响应，直到 SIG_UNBLOCK 后才会响应刚才到达的信号。
 ```
 
-信号虽然在代码段到达，但不响应，直到 SIG_UNBLOCK 后才会响应刚才到达的信号。不能决定信号什么时候来，但决定信号什么时候处理，相当于延迟处理信号。
+例如在 star.c 中，它是一直打印十个 * 的，当我们接收到 Ctrl+c 信号后，会打印一个 !，每接收一个信号就打印一个 !。由于 for 循环一直在那里循环，它是阻塞的，等打印完十个才不阻塞，通过这个程序说明信号可以打断阻塞的程序。
 
-`int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);`
+所以我们在 block.c 中也是打印 * ，但信号来到后，我们先不打印 ！，等到换行后再打印信号处理程序的 ！，即在第二个 for 中的阻塞代码我们不能让信号打断，所以我们需要在执行这段代码前先将信号阻塞住，执行完后再 unblock 。但是由于 sigprocmask 函数是通过控制 mask 位图来控制信号什么时候来处理的，所以当多个信号来了后，不能累加信号的个数，所以只会执行第一个的处理
 
-how  表示操作类型，有三种：
+程序。
 
-SIG_BLOCK： 将 set 集合中信号阻塞，总的阻塞信号集将是 set 参数和当前环境的组合（可以理解为将 set 加入当前环境的 block 集）
-
-SIG_UNBLOCK：将 set 中的信号从当前 block 集中删除。
-
-SIG_SETMASK：block 集被设置为参数 set
-
-因此一般情况下，在临界周围使用 sigprocmask，有两种写法
+因此一般情况下，在临界周围使用 sigprocmask，有两种写法：
 
 1. 成对使用 SIG_BLOCK、SIG_UNBLOCK，意味着增加 set 中信号到 block 集和从 block 集删除 set 中信号。
 
-但如果考虑模块化原则---使用前后环境变量并不发生改变，则这种写法不太稳妥，比如，当前环境中的 block 集本身就有一个信号，那么 SIG_BLOCK 再增加此信号相当于无操作，但离开临界后使用 SIG_UNBLOCK ，则将此信号从 block 集删除，因此最后得到的 blcok 集和模块加载前不相同。所以采用如下第二种写法较好。
+```
+sigemptyset(&set);
+sigaddset(&set, SIGINT);
+for(i = 0; i < 1000; i++) {	
+	sigprocmask(SIG_BLOCK, &set, &oset);
+	for(j = 0; j < 5; j++) {
+		write(1, "*", 1);
+		usleep(1000000);
+	}
+	write(1, "\n", 1);
+	sigprocmask(SIG_SETMASK, &oset, NULL);
+} 
+```
+
+但如果考虑模块化原则---使用前后环境状态并不发生改变，则这种写法不太稳妥，比如，当之前环境中的 block 集本身就有一个信号，那么 SIG_BLOCK 再增加此信号相当于无操作，但离开临界后使用 SIG_UNBLOCK ，则将此信号从 block 集删除，因此最后得到的 blcok 集和模块加载前不相同。
+
+**注意**：虽然上面用 oset 保存了旧的状态，但它每次保存和恢复都是打印完一行之前保存这一行之前的状态，打印完后恢复旧的状态，如此循环，这个并不是该模块之前的状态，而是每行之前的状态。
+
+2. 正确做法：因为你不知道你现在要设置 block 的集合 set 中之前是不是 block 的，所以麻烦一点，先将 set 集合中的先统一设置为 unblock ，然后保存状态到 saveset 中，然后在 block 就可以不用保存状态了。
 
 ```
-sigprocmask(SIG_BLOCK, &set, NULL);
-临界区
-sigprocmask(SIG_UNBLOCK, &set, NULL); 
+sigemptyset(&set);
+sigaddset(&set, SIGINT);
+sigprocmask(SIG_UNBLOCK, &set, &saveset);
+for(i = 0; i < 1000; i++) {	
+	sigprocmask(SIG_BLOCK, &set, NULL);
+	for(j = 0; j < 5; j++) {
+		write(1, "*", 1);
+		usleep(1000000);
+	}
+	write(1, "\n", 1);
+	sigprocmask(SIG_UNBLOCK, &set, NULL);  // unblock后还没走到
+} 
 
-```
-
-2. 在对 block 集做修改时，保存原始的信号集，结束后用 SIG_SETMASK 恢复
-
-```
-sigprocmask(SIG_BLOCK, &set, &oset);
-临界区
-sigprocmask(SIG_SETMASK, &oset, NULL); 
+sigprocmask(SIG_SETMASK, &saveset, NULL); 
 ```
 
 程序看 susp.c。
 
 #### 9. 扩展
 
-**sigsuspend()**
+##### sigsuspend()
 
 ```C
-//wait for a signal， 利用此函数可以做一个信号驱动程序
-sigsuspend();  
+//wait for a signal， man 手册上的解释跟 pause() 一样，也就是信号来了后会落在 sigsuspend 中，多个来到时会阻塞在那，等前一个执行完再执行现在这个。
+
 int sigsuspend(const sigset_t *mask);
 ```
 
-如果信号终止程序，函数不返回。如果信号被捕获，在信号处理函数返回后，此函数返回，然后程序的信号集被设置为调用之前的状态。
+在 block.c 中程序在连续多次 Ctrl + c 时，只会响应一次，而不是按多少次就响应多少次，这就出现了信号丢失的情况。
 
-在原来的 block.c 函数中，希望解除信号阻塞并实现有信号抵达时程序才接着往下运行。
+**pause() 与 sigsuspend 的区别**
 
+如在 block_2.c 中，先将 sigprocmask 函数的部分注释掉，即将原来是信号在一行中到来时，要等到第二行开头之前才会响应信号的处理函数，现在取消掉后，我们就什么时候收到信号，什么时候就响应。我们在每打印一行的后面加一个 pause()，即我们每打印完一行，就会停止打印，进入睡眠，除非此时有信号来领落到 pause 上，才会唤醒程序继续执行程序，此时既要执行信号处理函数，既要继续打印五个 * ，打印完一行后又等待。
+
+这就是一个信号驱动程序，即信号来了后，就打印一行，然后暂停，再来了后，继续打印一行。
+
+**注意**：由于将 sigprocmask 注释掉了，所以这里是可以打断阻塞的。
+
+所以我们为了实现跟上面用 sigprocmask 一样，就要将该函数部分的注释部分加上去。如 susp.c 中 sigprocmask 和 pause 组合的部分，被注释掉了，注意这两个的顺序跟 block_2c 中的顺序已经不一样，要先恢复状态，再 pause 。
+
+现在这个程序在打印一行的过程中即使再来一个信号，也不会在中间响应信号处理程序，而是在下一行前响应，但是虽然响应了第二个信号的处理函数，本来有了第二个信号，按道理会继续再打印一行，但是没有，只是响应了信号处理函数的部分。
+
+这是为什么呢？这就要了解 pause 的概念了：**只有当一个信号递达且处理方式被捕获时， pause 函数引起的挂起操作才会被唤醒**。即确切的说是这样，有了信号之后，是信号处理函数砸到 pause() 上，而不是信号砸到 pause() 上，那么程序就有一个问题。
+
+```C
+sigprocmask(SIG_SETMASK, &oset, NULL);// 解除阻塞，使能看到信号。
+pause();
 ```
-sigprocmask(SIG_UNBLOCK, &set, NULL); // 解除阻塞
-pause();							  // 等待信号
+
+在解除阻塞后的瞬间，信号处理函数就响应完了，并没有砸到 pause() 上，响应完后，再执行 pause() ，这样就不会唤醒程序了。**所以根本原因就是这两句是非原子的。**
+
+sigsuspend 就能解决这个问题。它就相当于下面注释部分的操作，但是注释部分不能实现 sigsuspend 的效果，原因是不是原子操作。
+
+```C
+sigprocmask(SIG_UNBLOCK, &set, &saveset);
+sigprocmask(SIG_BLOCK, &set, &oset);
+for(i = 0; i < 1000; i++) {	
+	
+	for(j = 0; j < 5; j++) {
+		write(1, "*", 1);
+		usleep(1000000);
+	}
+	write(1, "\n", 1);
+	sigsuspend(&oset);
+
+	//sigset_t tmpset;
+	//sigprocmask(SIG_SETMASK, &oset, &tmpset);  
+	//pause();
+	//sigprocmask(SIG_SETMASK, &tmpset, NULL);
+} 
 ```
 
-但实现运行中，由于这两步并不是原子操作，信号响应发生在 pause 之前，因此不会运行到 pause 之后（即信号没有落到 pause上 ）。而 sigsuspend 函数解除阻塞并等待信号，是一个原子操作，就不会产生上述问题。
-
-函数内部用参数 mask 代替当前信号集，就相当于解除阻塞，然后阻塞等待信号到达，因此称为原子操作。注意的是，等待的信号是参数 mask 中不阻塞的信号，只要此信号不被参数 mask 所阻塞，则都打破当前阻塞过程。
+此程序在打印一行的过程中，即使有多个信号，也只是处理一个信号处理函数，且后面也只会打印一圈，并不会多少个信号就执行多少圈。即不能解决多个信号来时信号丢失的问题，因为标准信号一定会丢失，实时信号才不会。
 
 **sigaction()**
 
