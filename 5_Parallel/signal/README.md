@@ -1,6 +1,6 @@
 ---
 created: 2024-07-18 22 : 45 周四
-modified: 2024-09-29 23 : 34 周日
+modified: 2024-10-04 11 : 37 周五
 ---
 
 异步事件的处理： 查询法（发生频率高）、通知法（发生频率低）
@@ -213,7 +213,7 @@ int main() {
 
 ##### pause() 
 
-可以使得进程暂停运行、进入休眠状态，直到进程捕获一个信号为止，只有执行了信号处理函数并返回，pause 才会返回 -1，且 errno 置 EINTR 。
+可以使得进程暂停运行、进入休眠状态，直到进程捕获一个信号为止，**只有执行了信号处理函数并返回**，pause 才会返回 -1，且 errno 置 EINTR 。
 
 **注意：** **只有当一个信号递达且处理方式被捕获时， pause 函数引起的挂起操作才会被唤醒**，然后继续执行后面的程序。如果信号的处理方式为默认处理方式或者忽略，那么 pause 函数不会唤醒，而是一直挂起。
 
@@ -400,11 +400,9 @@ how：表示操作类型，有三种：
 信号虽然在代码段到达，但不响应，直到 SIG_UNBLOCK 后才会响应刚才到达的信号。
 ```
 
-例如在 star.c 中，它是一直打印十个 * 的，当我们接收到 Ctrl+c 信号后，会打印一个 !，每接收一个信号就打印一个 !。由于 for 循环一直在那里循环，它是阻塞的，等打印完十个才不阻塞，通过这个程序说明信号可以打断阻塞的程序。
+例如在 star.c 中，它是一直打印十个 `*` 的，当我们接收到 `Ctrl+c` 信号后，会打印一个 `!`，每接收一个信号就打印一个 `!`。由于 for 循环一直在那里循环，它是阻塞的，等打印完十个才不阻塞，通过这个程序说明 **信号可以打断阻塞的程序**。
 
-所以我们在 block.c 中也是打印 * ，但信号来到后，我们先不打印 ！，等到换行后再打印信号处理程序的 ！，即在第二个 for 中的阻塞代码我们不能让信号打断，所以我们需要在执行这段代码前先将信号阻塞住，执行完后再 unblock 。但是由于 sigprocmask 函数是通过控制 mask 位图来控制信号什么时候来处理的，所以当多个信号来了后，不能累加信号的个数，所以只会执行第一个的处理
-
-程序。
+所以我们在 block.c 中也是打印 `*` ，但信号来到后，我们先不打印 `！`，等到换行后再打印信号处理程序的 `！`，即在第二个 for 中的阻塞代码我们不能让信号打断，所以我们需要在执行这段代码前先将信号阻塞住，执行完后再 unblock 。但是由于 sigprocmask 函数是通过控制 mask 位图来控制信号什么时候来处理的，所以当多个信号来了后，不能累加信号的个数，所以只会执行第一个的处理程序。
 
 因此一般情况下，在临界周围使用 sigprocmask，有两种写法：
 
@@ -424,9 +422,9 @@ for(i = 0; i < 1000; i++) {
 } 
 ```
 
-但如果考虑模块化原则---使用前后环境状态并不发生改变，则这种写法不太稳妥，比如，当之前环境中的 block 集本身就有一个信号，那么 SIG_BLOCK 再增加此信号相当于无操作，但离开临界后使用 SIG_UNBLOCK ，则将此信号从 block 集删除，因此最后得到的 blcok 集和模块加载前不相同。
+但如果考虑模块化原则，使用前后环境状态并不发生改变，则这种写法不太稳妥，比如，当之前环境中的 block 集本身就有一个信号，那么 SIG_BLOCK 再增加此信号相当于无操作，但离开临界后使用 SIG_UNBLOCK ，则将此信号从 block 集删除，因此最后得到的 blcok 集和模块加载前不相同。
 
-**注意**：虽然上面用 oset 保存了旧的状态，但它每次保存和恢复都是打印完一行之前保存这一行之前的状态，打印完后恢复旧的状态，如此循环，这个并不是该模块之前的状态，而是每行之前的状态。
+**注意**：虽然上面用 oset 保存了旧的状态，但它每次保存和恢复都是打印完一行之前保存这一行之前的状态，打印完后恢复旧的状态，如此循环，这个并不是该模块之前的状态，而是每行之前的状态。所以在整体程序之前还要保存一个就状态。
 
 2. 正确做法：因为你不知道你现在要设置 block 的集合 set 中之前是不是 block 的，所以麻烦一点，先将 set 集合中的先统一设置为 unblock ，然后保存状态到 saveset 中，然后在 block 就可以不用保存状态了。
 
@@ -458,8 +456,6 @@ sigprocmask(SIG_SETMASK, &saveset, NULL);
 
 int sigsuspend(const sigset_t *mask);
 ```
-
-在 block.c 中程序在连续多次 Ctrl + c 时，只会响应一次，而不是按多少次就响应多少次，这就出现了信号丢失的情况。
 
 **pause() 与 sigsuspend 的区别**
 
@@ -571,6 +567,44 @@ signal 并不会区分信号的来源，直接执行信号行为。而显然我�
 // 第一个参数是信号处理函数，第二个参数是一个结构体，表示信号的
 // 信息，里面的 si_code 可以识别信号的来源，第三个无
 void     (*sa_sigaction)(int, siginfo_t *, void *);
+
+siginfo_t {
+   int      si_signo;     /* Signal number */
+   int      si_errno;     /* An errno value */
+   int      si_code;      /* Signal code */
+   int      si_trapno;    /* Trap number that caused
+							 hardware-generated signal
+							 (unused on most architectures) */
+   pid_t    si_pid;       /* Sending process ID */
+   uid_t    si_uid;       /* Real user ID of sending process */
+   int      si_status;    /* Exit value or signal */
+   clock_t  si_utime;     /* User time consumed */
+   clock_t  si_stime;     /* System time consumed */
+   sigval_t si_value;     /* Signal value */
+   int      si_int;       /* POSIXb signal */
+   void    *si_ptr;       /* POSIXb signal */
+   int      si_overrun;   /* Timer overrun count;
+							 POSIXb timers */
+   int      si_timerid;   /* Timer ID; POSIXb timers */
+   void    *si_addr;      /* Memory location which caused fault */
+   long     si_band;      /* Band event (was int in
+							 glibc 2.3.2 and earlier) */
+   int      si_fd;        /* File descriptor */
+   short    si_addr_lsb;  /* Least significant bit of address
+							 (since Linux 2.6.32) */
+   void    *si_lower;     /* Lower bound when address violation
+							 occurred (since Linux 3.19) */
+   void    *si_upper;     /* Upper bound when address violation
+							 occurred (since Linux 3.19) */
+   int      si_pkey;      /* Protection key on PTE that caused
+							 fault (since Linux 4.6) */
+   void    *si_call_addr; /* Address of system call instruction
+							 (since Linux 3.5) */
+   int      si_syscall;   /* Number of attempted system call
+							 (since Linux 3.5) */
+   unsigned int si_arch;  /* Architecture of attempted system call
+							 (since Linux 3.5) */
+}
 ```
 
 1）解决方法，响应当前信号时，block 其它信号。
@@ -581,34 +615,4 @@ setitimer();  将会替换 alarm。程序在 mytbf_sa 文件夹中。可以看�
 
 #### 10. 实时信号
 
-之前讲的都是标准信号，会丢失，没有严格的响应顺序，因为用的是位图。如果同时收到两种信号，那么先响应标准信号，后响应实时信号。其中 susp_rt.c 程序解决了信号丢失的问题。而实时信号不丢失，且排队（能排队的数量 ulimit -a 中 pending sigals）
-
-man wait
-
-wait 用来等待调用进程的子进程发生状态改变。
-
-子进程状态改变是指：子进行运行结束；子进程被信号中断；子进程被信号重启。
-
-正常终止的子进程，如果使用了 wait 将会允许系统回收其资源，否则将不被回收，成为僵尸进程。
-
-如果子进程状态改变，函数会立即返回。否则将阻塞直到子进程状态改变或此函数被信号打断(假设系统调用不会通过 sigaction 的 SA_RESTART 进行自动重启的话)。
-
-没有被 wait 的子进程终止时，会成为僵尸进程。内核为僵尸进程维护一个最小的数据结构，包含 PID，终止状态，资源利用情况，来允许它的父进程使用 wait 来获取这些信息。
-
-只要僵尸进程不通过 wait 来从系统中删除，它就会消耗内核进程表的一个槽位，而一旦这个表填满，则不能再创建新的进程。
-
-如果僵尸进程的父进程终止，它将被 init 进程接管，而 init 进程将会自动调用wait来进行收尸。
-
-POSIX.1-2001 定义如果 SIGCHLD 信号被设置为 SIG_IGN 或者在 sigaction 中设置 SIGCHLD 为 SA_NOCLDWAIT 标志，那么子进程终止时将不会产生僵尸进程，
-
-此时调用 wait 或 wait_pid 将会阻塞等待其所有的子进程都结束才返回，且错误码是 ECHILD。
-
-综上：避免僵尸进程的方法有：
-
-1. signal(SIGCHLD, SIG_IGN)  或 sigaction 的 SA_NOCLDWAIT 标志位通知内核对子进程的结束不关心，由内核回收
-
-2. 父进程主动调用 wait、waitpid 等函数等待子进程结束， 如果尚无子进程退出 wait 会导致父进程阻塞。
-
-如果父进程很忙可以用 signal 注册信号处理函数，在信号处理函数调用 wait、waitpid 等待子进程退出。
-
-3. 杀死父进程。杀死僵尸进程的父进程，僵尸进程由 init 接管，会自动处理善后工作。
+之前讲的都是标准信号，会丢失，没有严格的响应顺序，因为用的是位图。如果同时收到两种信号，那么先响应标准信号，后响应实时信号。其中 susp_rt.c 程序解决了信号丢失的问题，即一下来了多个相同的信号，不是只响应一个，而是全部都会响应，且排队（能排队的数量 ulimit -a 中 pending sigals）。

@@ -90,11 +90,9 @@ int main() {
     sa.sa_handler = daemon_exit;
     // 做成空集
     sigemptyset(&sa.sa_mask);
-    // 将另外两个信号加入到集合中 block
+    // 将三个要用到的信号加入到 sa 中
     sigaddset(&sa.sa_mask, SIGQUIT);
     sigaddset(&sa.sa_mask, SIGTERM);
-    // 把自己也屏蔽掉，因为在响应自己的时候，自己
-    // 显然也是屏蔽状态的
     sigaddset(&sa.sa_mask, SIGINT);
     sa.sa_flags = 0;
 

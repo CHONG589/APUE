@@ -17,10 +17,10 @@ typedef struct mytbf_st {
 
 static mytbf *job[MYTBF_MAX];
 static int inited = 0;
-// static __sighandler_t alrm_handler_save;
 static struct sigaction alrm_sa_save;
 
 static void alrm_action(int s, siginfo_t *infop, void *unsused) {
+
     int i;
     // alarm(1);
     if (infop->si_code != SI_KERNEL) {
@@ -68,6 +68,8 @@ static void module_load(void) {
     struct itimerval itv;
 
     sa.sa_sigaction = alrm_action;
+    // 没有人跟自己共用信号处理函数，所以不会有重入的问题，所以
+    // 不用在 sa_mask 中加入其它信号，将它置为空集就行。
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_SIGINFO;
     sigaction(SIGALRM, &sa, &alrm_sa_save);
