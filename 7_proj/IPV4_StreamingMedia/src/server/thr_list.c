@@ -63,7 +63,7 @@ static void *thr_list(void *p) {
     while (1) {
         ret = sendto(serversd, entlistp, totalsize, 0, (void *)&sndaddr, sizeof(sndaddr));
         if (ret < 0) {
-            syslog(LOG_WARNING, "sendto(serversd, enlistp... : %s", strerror(errno));
+            syslog(LOG_WARNING, "sendto serversd, enlistp... : %s", strerror(errno));
         }
         else {
             syslog(LOG_DEBUG, "sendto msg_list success, size is : %d", entlistp->entry->len);

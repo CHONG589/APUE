@@ -7,13 +7,11 @@
 #include <errno.h>
 #include <net/if.h>
 #include <getopt.h>
-
-#include "client.h"
-
 // 可以不用这样写，在 makefile 中定义了路径
 // #include ../include/proto.h"
-#include "proto.h" 
+#include <proto.h> 
 
+#include "client.h"
 
 /**
  * -M 或 --mgroup      指定多播组
@@ -25,7 +23,8 @@
 struct client_conf_st client_conf = {\
         .rcvport = DEFAULT_RCVPORT,\
         .mgroup = DEFAULT_MGROUP,\
-        .player_cmd = DEFAULT_PLAYERCMD};
+        .player_cmd = DEFAULT_PLAYERCMD
+};
 
 static void printhelp(void) {
 

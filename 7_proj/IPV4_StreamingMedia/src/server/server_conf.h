@@ -7,7 +7,7 @@
 // 运行方式
 enum {
     RUN_DAEMON = 1,//后台运行
-    RUN_FOREGROUN
+    RUN_FOREGROUND
 };
 
 struct server_conf_st {

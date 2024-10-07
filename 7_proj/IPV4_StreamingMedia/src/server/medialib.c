@@ -32,8 +32,9 @@
 struct channel_context_st {
     chnid_t chnid;
     char *desc;
+    // 记录该频道文件夹下的文件信息。
     glob_t mp3glob;
-    // 当前频道位置。
+    // 当前频道文件夹下的文件的位置
     int pos;
     // 打开这个文件所用到的文件描述符
     int fd;
@@ -95,11 +96,15 @@ static struct channel_context_st *path2entry(const char *path) {
     strncpy(pathstr, path, PATHSIZE);
     strncat(pathstr, "/*.mp3", PATHSIZE);
     if (glob(pathstr, 0, NULL, &me->mp3glob) != 0) {
+        // 解析当前频道目录失败，chnid 也要递增，因为下一次是解析的下一个
+        // 频道，不是当前频道，所以失败也要递增。
         curr_id++;
         syslog(LOG_ERR, "[medialib][channel_context_st] %s is not channel dir (cannot find mp3 files)", path);
         free(me);
         return NULL;
     }
+    // 由于这里一个频道只有一个 .mp3 文件，所以直接将 pos 置为 0，只打开一个
+    // 就行，其实 pos 记录的是频道目录中文件的位置
     me->pos = 0;
     me->offset = 0;
     me->fd = open(me->mp3glob.gl_pathv[me->pos], O_RDONLY);
@@ -110,6 +115,7 @@ static struct channel_context_st *path2entry(const char *path) {
     }
     me->chnid = curr_id;
     curr_id++;
+
     return me;
 }
 
@@ -145,6 +151,7 @@ int mlib_getchnlist(struct mlib_listentry_st **result, int *resnum) {
         return -1;
     }
 
+    // ptr 用来存节目单
     ptr = malloc(sizeof(struct mlib_listentry_st) * globres.gl_pathc);
     // 如果是空目录
     if (ptr == NULL) {
@@ -195,13 +202,12 @@ static int open_next(chnid_t chnid) {
         }
 
         close(channel[chnid].fd);
-        // mp3glob 中存的是该频道文件中有哪些文件，它是 glob_t 类型
+        // mp3glob 中存的是该频道文件中有哪些 .mp3 文件，它是 glob_t 类型
         // 通过 glob() 解析出来，然后存到 mp3glob 中，其中 gl_pachv
         // 中存的是文件名。 
-        // 本频道的结构体中的 pos 已经递增到下一个频道了，所以我们
-        // 想要打开下一个频道可以利用 pos，open 是利用文件名来打开文件
-        // 的。下面是通过 pos 寻找到下一个文件名的。
-        // channel[chnid].pos 是下一个文件名的位置。
+        // 当 pos 指向的 .mp3 文件读完或者读失败时，pos 就会递增到本频道的
+        // 下一个 .mp3 文件继续读，所以 open_next 函数的具体作用就是寻找本
+        // 频道中的下一个 .mp3 文件。
         channel[chnid].fd = open(channel[chnid].mp3glob.gl_pathv[channel[chnid].pos], O_RDONLY);
         if (channel[chnid].fd < 0) {
             syslog(LOG_WARNING, "open(%s) : %s", channel[chnid].mp3glob.gl_pathv[channel[chnid].pos], strerror(errno));
@@ -261,5 +267,6 @@ size_t mlib_readchn(chnid_t chnid, void *buf, size_t size) {
 int mlib_freechnlist(struct mlib_listentry_st *ptr) {
 
     free(ptr);
+
     return 0;
 }

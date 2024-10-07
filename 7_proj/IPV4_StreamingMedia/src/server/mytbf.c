@@ -122,11 +122,11 @@ mytbf_t *mytbf_init(int cps, int burst) {
     return me;
 }
 
-static int min(int token, int size) {
+static int min(int a, int b) {
 
-    if (token <= size)
-        return token;
-    return size;
+    if (a <= b)
+        return a;
+    return b;
 }
 
 int mytbf_fetchtoken(mytbf_t *ptr, int size) {

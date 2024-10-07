@@ -1,7 +1,7 @@
 #ifndef PROTO_H__
 #define PROTO_H__
 
-#include <site_type.h>
+#include "site_type.h"
 
 // 多播组
 #define DEFAULT_MGROUP          "224.2.2.2"
@@ -21,10 +21,6 @@ struct msg_channel_st {
 } __attribute__((packed));
 
 //-------------------------------------------------------------------
-
-// 节目单中每个频道包的大小
-#define MSG_LIST_MAX            (65536-20-8)
-#define MAX_ENTRY               (MSG_LIST_MAX-sizeof(chnid_t))
 
 // 节目单中一个频道包的大小
 struct msg_listentry_st {
@@ -51,6 +47,9 @@ struct msg_listentry_st {
 // 最小频道号用来发数据的是 1 号
 #define MINCHNID                1
 #define MAXCHNID                (MINCHNID+CHNNR-1)
+
+#define MSG_LIST_MAX            (65536-20-8)
+#define MAX_ENTRY               (MSG_LIST_MAX-sizeof(chnid_t))
 
 struct msg_list_st {
     chnid_t chnid;      // must be LISTCHNID，即为节目单频道号

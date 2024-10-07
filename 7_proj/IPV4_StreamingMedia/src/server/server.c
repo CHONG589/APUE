@@ -28,11 +28,13 @@
  * -H           显示帮助
  */
 
-struct server_conf_st server_conf = {.rcvport = DEFAULT_RCVPORT, \
-                        .mgroup = DEFAULT_MGROUP, \
-                        .media_dir = DEFAULT_MEDIADIR, \
-                        .runmode = RUN_DAEMON, \
-                        .ifname = DEFAULT_IF};
+struct server_conf_st server_conf = {
+    .rcvport = DEFAULT_RCVPORT, \
+    .mgroup = DEFAULT_MGROUP, \
+    .media_dir = DEFAULT_MEDIADIR, \
+    .runmode = RUN_DAEMON, \
+    .ifname = DEFAULT_IF
+};
 
 // 不能局部化
 int serversd;
@@ -132,10 +134,12 @@ int main(int argc, char *argv[]) {
     int c;
     int index = 0;
     struct sigaction sa;
-    struct option argarr[] = {{"mgroup", 1, NULL, 'M'}, {"port", 1, NULL, 'P'}, \
-                                {"foreground", 0, NULL, 'F'}, {"media_dir", 1, NULL, 'D'}, \
-                                {"ifname", 1, NULL, 'I'}, {"help", 0, NULL, 'H'}, \
-                                {NULL, 0, NULL, 0}};
+    struct option argarr[] = {
+        {"mgroup", 1, NULL, 'M'}, {"port", 1, NULL, 'P'}, \
+        {"foreground", 0, NULL, 'F'}, {"media_dir", 1, NULL, 'D'}, \
+        {"ifname", 1, NULL, 'I'}, {"help", 0, NULL, 'H'}, \
+        {NULL, 0, NULL, 0}
+    };
 
     // 修改下面三种信号来了后的行为，当这三种信号来了后
     // 执行清理操作，即释放资源。
@@ -163,7 +167,7 @@ int main(int argc, char *argv[]) {
                 server_conf.rcvport = optarg;
                 break;
             case 'F':
-                server_conf.runmode = RUN_FOREGROUN;
+                server_conf.runmode = RUN_FOREGROUND;
                 break;
             case 'D':
                 server_conf.media_dir = optarg;
@@ -187,7 +191,7 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
-    else if (server_conf.runmode == RUN_FOREGROUN) {
+    else if (server_conf.runmode == RUN_FOREGROUND) {
         // 前台进程
         // do nothing
     }
