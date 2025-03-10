@@ -25,7 +25,8 @@ int main() {
 		exit(1);
 	}
 	else if(pid == 0) {
-		execl("/bin/date", "date", "+%s", NULL); // 子进程用另外的命令替换 这里"data"参数是显示在ps axf中的名称
+		// 子进程用另外的命令替换 这里"data"参数是显示在ps axf中的名称
+		execl("/bin/date", "date", "+%s", NULL); 
 		perror("exec()");
 		exit(1);
 	}
