@@ -16,8 +16,6 @@
 
 static pthread_t tid_list;
 
-// 这里要另外存储穿过来的节目单，因为节目单创造完以后，在 server.c 我记得是直接销毁了
-// 为节目单分配的空间的，即用完了就销毁了，所以这里要备份。
 // 节目单包含的节目数量
 static int nr_list_ent;
 // 节目单信息数组，每一条存储一个节目频道信息
@@ -63,7 +61,7 @@ static void *thr_list(void *p) {
     while (1) {
         ret = sendto(serversd, entlistp, totalsize, 0, (void *)&sndaddr, sizeof(sndaddr));
         if (ret < 0) {
-            syslog(LOG_WARNING, "sendto serversd, enlistp... : %s", strerror(errno));
+            syslog(LOG_WARNING, "sendto serversd %d, enlistp... : %s", serversd, strerror(errno));
         }
         else {
             syslog(LOG_DEBUG, "sendto msg_list success, size is : %d", entlistp->entry->len);
@@ -73,7 +71,8 @@ static void *thr_list(void *p) {
 }
 
 /**
- * 第一个参数是节目单，第二个是节目单的大小。
+ * 第一个参数是已经解析好的节目单，第二个是节目单的大小。
+ * 根据传入的这两个节目单信息去创建线程
  */
 int thr_list_create(struct mlib_listentry_st *listp, int nr_ent) {
 
@@ -82,6 +81,7 @@ int thr_list_create(struct mlib_listentry_st *listp, int nr_ent) {
     list_ent = listp;
     nr_list_ent = nr_ent;
     syslog(LOG_DEBUG, "list content : chnid : %d, desc : %s\n", listp->chnid, listp->desc);
+    //线程执行的任务就是通过节目单信息包装好，然后每秒发送一次
     err = pthread_create(&tid_list, NULL, thr_list, NULL);
     if (err) {
         syslog(LOG_ERR, "pthread_create() : %s", strerror(err));

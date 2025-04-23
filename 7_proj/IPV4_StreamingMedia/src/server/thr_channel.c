@@ -15,6 +15,7 @@
 
 #include "thr_channel.h"
 #include "server_conf.h"
+#include "thr_list.h"
 
 struct thr_channel_ent_st {
     chnid_t chnid;
@@ -56,7 +57,7 @@ static void *thr_channel_snder(void *ptr) {
 }
 
 /**
- * 要给每一个频道创建一个，所以要把当前的频道传输过来。 
+ * 创建对应频道的线程，参数是对应频道的节目单信息
  */
 int thr_channel_create(struct mlib_listentry_st *ptr) {
 
